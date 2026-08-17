@@ -3,7 +3,8 @@ import json
 import logging
 from pathlib import Path
 from typing import Optional
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -12,14 +13,15 @@ from backend.pipeline.matrix_compressor import MatrixCompressor
 from backend.pipeline.row_col_converter import MatrixToRowColConverter
 from backend.pipeline.row_col_compressor import RowColCompressor
 from backend.pipeline.lcs_comparator import LCSComparator
+from backend.pipeline.levenshtein_comparator import LevenshteinComparator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("signalcs-api")
 
 app = FastAPI(
     title="SignaLCS Backend API",
-    description="Offline Handwritten Signature Verification Pipeline using LCS Algorithm",
-    version="0.1.0",
+    description="Offline Handwritten Signature Verification Pipeline using LCS & Levenshtein Algorithms",
+    version="1.0.0",
 )
 
 # Enable CORS for frontend development
@@ -33,11 +35,34 @@ app.add_middleware(
 
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException):
     """Return clean { "error": ... } JSON format matching the API contract."""
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": exc.detail},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle request validation errors gracefully with structured JSON error."""
+    errors_list = exc.errors()
+    msg = errors_list[0].get("msg", "Invalid parameter") if errors_list else "Validation error"
+    loc = " -> ".join(str(l) for l in errors_list[0].get("loc", [])) if errors_list else ""
+    detail = f"{msg} at {loc}" if loc else msg
+    return JSONResponse(
+        status_code=422,
+        content={"error": f"Request validation failed: {detail}"},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all global exception handler ensuring never returning raw 500 tracebacks."""
+    logger.exception("Unhandled server exception: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"error": f"Internal server error: {str(exc)}"},
     )
 
 
@@ -84,11 +109,11 @@ def process_signature_pipeline(
 @app.get("/")
 @app.get("/api/health")
 async def health_check():
-    """Health check endpoint for server ping and status discovery."""
+    """Health check endpoint for server ping, status discovery, and active stages."""
     return {
         "status": "ok",
         "service": "SignaLCS Verification API",
-        "version": "0.1.0",
+        "version": "1.0.0",
         "active_stages": [
             "Stage 1: Acquisition",
             "Stage 2: ImageToMatrixConverter (64x64)",
@@ -96,6 +121,7 @@ async def health_check():
             "Stage 4: MatrixToRowColConverter (Projections)",
             "Stage 5: RowColCompressor (Hex Fingerprint)",
             "Stage 6: LCSComparator (DP Table & Traceback)",
+            "Extension: LevenshteinComparator (Edit Distance)",
         ],
     }
 
@@ -111,7 +137,7 @@ async def compare_signatures(
     working_resolution: Optional[int] = Form(64),
     match_threshold_pct: Optional[float] = Form(60.0),
 ):
-    """Compare two signature files through the 6-stage verification pipeline."""
+    """Compare two signature files through the 6-stage verification pipeline and Levenshtein extension."""
     # Validate files presence
     if not signature_a or not signature_b:
         raise HTTPException(status_code=400, detail="Both signature_a and signature_b are required.")
@@ -150,11 +176,26 @@ async def compare_signatures(
         raise HTTPException(status_code=422, detail=f"Invalid image format or corrupt file: {str(e)}")
 
     # Execute Stage 6: Dynamic Programming LCS Comparison
-    comparator = LCSComparator(match_threshold_pct=match_threshold_pct)
-    comparison_data = comparator.compare(
+    lcs_comp = LCSComparator(match_threshold_pct=match_threshold_pct)
+    comparison_data = lcs_comp.compare(
         sig_a_data["fingerprint_string"],
         sig_b_data["fingerprint_string"],
     )
+
+    # Execute Extension: Levenshtein Edit Distance Comparison (Phase 10)
+    lev_comp = LevenshteinComparator(match_threshold_pct=match_threshold_pct)
+    lev_result = lev_comp.compare(
+        sig_a_data["fingerprint_string"],
+        sig_b_data["fingerprint_string"],
+    )
+
+    # Embed Levenshtein metrics alongside LCS
+    comparison_data["levenshtein"] = {
+        "distance": lev_result["distance"],
+        "similarity_percent": lev_result["similarity_percent"],
+        "verdict": lev_result["verdict"],
+        "operations": lev_result["operations"],
+    }
 
     # Assemble complete frozen contract response
     response_payload = {
@@ -172,7 +213,7 @@ async def compare_signatures(
     }
 
     logger.info(
-        "Processed Stages 1-6 for '%s' (FP: %s) and '%s' (FP: %s) -> LCS: %d (%s%% - %s)",
+        "Processed Stages 1-6 for '%s' (FP: %s) and '%s' (FP: %s) -> LCS: %d (%s%% - %s), Levenshtein Distance: %d (%s%%)",
         signature_a.filename,
         sig_a_data["fingerprint_string"],
         signature_b.filename,
@@ -180,6 +221,8 @@ async def compare_signatures(
         comparison_data["lcs_length"],
         comparison_data["similarity_percent"],
         comparison_data["verdict"],
+        lev_result["distance"],
+        lev_result["similarity_percent"],
     )
 
     return JSONResponse(content=response_payload)

@@ -12,6 +12,7 @@ import {
   KeyRound,
   GitCompare,
   CheckCircle2,
+  Route,
 } from 'lucide-react';
 
 const GUIDE_STEPS = [
@@ -115,6 +116,24 @@ const GUIDE_STEPS = [
         <ul className="guide-list">
           <li><strong>Similarity Formula:</strong> Similarity = (LCS Length / 16) × 100%</li>
           <li><strong>Decision Verdict:</strong> Similarity ≥ 60% → <strong>Likely Match</strong>, otherwise <strong>Likely Different</strong>.</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    step: 7,
+    title: 'Extension: Levenshtein Distance & Edit Metric',
+    icon: Route,
+    rule: 'D[i,j] = min(D[i-1,j]+1, D[i,j-1]+1, D[i-1,j-1] + cost)',
+    badge: 'Edit Distance Metric',
+    content: (
+      <>
+        <p>
+          Calculates the minimum edit operations (insertions, deletions, and substitutions) needed to transform Signature A&apos;s fingerprint into Signature B&apos;s.
+        </p>
+        <ul className="guide-list">
+          <li><strong>Edit Distance:</strong> Minimum total mutations between both 16-char strings.</li>
+          <li><strong>Levenshtein Similarity:</strong> max(0, 1 - Distance / 16) × 100%.</li>
         </ul>
       </>
     ),

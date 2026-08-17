@@ -29,9 +29,7 @@ function SingleDropZone({
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type.startsWith('image/')) {
-        onFileSelect(droppedFile);
-      }
+      onFileSelect(droppedFile);
     }
   };
 
@@ -84,7 +82,7 @@ function SingleDropZone({
         type="file"
         ref={fileInputRef}
         onChange={handleFileInputChange}
-        accept="image/png, image/jpeg, image/jpg, image/svg+xml, image/webp"
+        accept="image/*, .png, .jpg, .jpeg, .svg, .webp, .bmp"
         style={{ display: 'none' }}
       />
 

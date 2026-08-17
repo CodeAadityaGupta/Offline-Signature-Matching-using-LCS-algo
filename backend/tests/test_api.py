@@ -29,14 +29,15 @@ def generate_drawn_signature(diag=True) -> bytes:
 
 
 def test_health_check_endpoint():
-    """Verify /api/health returns 200 OK and all 6 stages active."""
+    """Verify /api/health returns 200 OK and all pipeline stages active."""
     response = client.get("/api/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
     assert "SignaLCS" in data["service"]
-    assert len(data["active_stages"]) == 6
+    assert len(data["active_stages"]) >= 6
     assert "Stage 6" in data["active_stages"][5]
+
 
 
 def test_root_endpoint():
@@ -135,6 +136,49 @@ def test_compare_signatures_empty_file_400():
     assert "empty" in data["error"].lower()
 
 
+def test_compare_signatures_includes_levenshtein_extension():
+    """Verify comparison block includes Levenshtein distance and similarity."""
+    png_a = generate_png_bytes(color=0)
+    png_b = generate_png_bytes(color=0)
+
+    response = client.post(
+        "/api/compare-signatures",
+        files={
+            "signature_a": ("sig_a.png", png_a, "image/png"),
+            "signature_b": ("sig_b.png", png_b, "image/png"),
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "levenshtein" in data["comparison"]
+    lev = data["comparison"]["levenshtein"]
+    assert lev["distance"] == 0
+    assert lev["similarity_percent"] == 100.0
+    assert lev["verdict"] == "likely match"
+    assert len(lev["operations"]) == 16
+
+
+def test_validation_error_handler_returns_clean_error_json():
+    """Verify invalid parameter type returns 422 with clean { 'error': ... } format."""
+    png_a = generate_png_bytes(color=0)
+    png_b = generate_png_bytes(color=0)
+
+    response = client.post(
+        "/api/compare-signatures",
+        files={
+            "signature_a": ("sig_a.png", png_a, "image/png"),
+            "signature_b": ("sig_b.png", png_b, "image/png"),
+        },
+        data={"threshold": "NOT_AN_INTEGER"},
+    )
+
+    assert response.status_code == 422
+    data = response.json()
+    assert "error" in data
+    assert "validation" in data["error"].lower()
+
+
 def test_compare_signatures_corrupt_file_422():
     """Verify corrupt image upload returns 422 with clean error JSON."""
     png_valid = generate_png_bytes(color=0)
@@ -148,4 +192,6 @@ def test_compare_signatures_corrupt_file_422():
     assert response.status_code == 422
     data = response.json()
     assert "error" in data
+
+
 

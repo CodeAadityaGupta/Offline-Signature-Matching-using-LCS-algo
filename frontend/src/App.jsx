@@ -29,40 +29,50 @@ export default function App() {
   const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [isPresetsOpen, setIsPresetsOpen] = useState(false);
 
+  // Helper to read File as Base64 Data URL (persists across re-renders without URL revocation issues)
+  const readFileAsDataUrl = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
   // File handlers for Signature A
-  const handleFileSelectA = (file) => {
-    if (previewUrlA && previewUrlA.startsWith('blob:')) {
-      URL.revokeObjectURL(previewUrlA);
-    }
+  const handleFileSelectA = async (file) => {
+    if (!file) return;
     setFileA(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrlA(url);
     setError(null);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setPreviewUrlA(dataUrl);
+    } catch (err) {
+      console.error('Failed to generate preview for file A:', err);
+      setPreviewUrlA(URL.createObjectURL(file));
+    }
   };
 
   const handleRemoveFileA = () => {
-    if (previewUrlA && previewUrlA.startsWith('blob:')) {
-      URL.revokeObjectURL(previewUrlA);
-    }
     setFileA(null);
     setPreviewUrlA('');
   };
 
   // File handlers for Signature B
-  const handleFileSelectB = (file) => {
-    if (previewUrlB && previewUrlB.startsWith('blob:')) {
-      URL.revokeObjectURL(previewUrlB);
-    }
+  const handleFileSelectB = async (file) => {
+    if (!file) return;
     setFileB(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrlB(url);
     setError(null);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setPreviewUrlB(dataUrl);
+    } catch (err) {
+      console.error('Failed to generate preview for file B:', err);
+      setPreviewUrlB(URL.createObjectURL(file));
+    }
   };
 
   const handleRemoveFileB = () => {
-    if (previewUrlB && previewUrlB.startsWith('blob:')) {
-      URL.revokeObjectURL(previewUrlB);
-    }
     setFileB(null);
     setPreviewUrlB('');
   };
@@ -79,8 +89,10 @@ export default function App() {
       const fileObjA = new File([blobA], preset.nameA, { type: blobA.type || 'image/svg+xml' });
       const fileObjB = new File([blobB], preset.nameB, { type: blobB.type || 'image/svg+xml' });
 
-      handleFileSelectA(fileObjA);
-      handleFileSelectB(fileObjB);
+      await Promise.all([
+        handleFileSelectA(fileObjA),
+        handleFileSelectB(fileObjB),
+      ]);
     } catch (err) {
       console.error('Failed to load preset signatures:', err);
     }
@@ -98,8 +110,10 @@ export default function App() {
       const fileObjA = new File([blobA], 'case_study_sample_a.svg', { type: 'image/svg+xml' });
       const fileObjB = new File([blobB], 'case_study_sample_b.svg', { type: 'image/svg+xml' });
 
-      handleFileSelectA(fileObjA);
-      handleFileSelectB(fileObjB);
+      await Promise.all([
+        handleFileSelectA(fileObjA),
+        handleFileSelectB(fileObjB),
+      ]);
     } catch (err) {
       console.error('Failed to load sample signatures:', err);
     }
@@ -130,14 +144,6 @@ export default function App() {
       setIsLoading(false);
     }
   }, [fileA, fileB, params, isMockMode, apiUrl]);
-
-  // Clean up Object URLs on unmount
-  useEffect(() => {
-    return () => {
-      if (previewUrlA && previewUrlA.startsWith('blob:')) URL.revokeObjectURL(previewUrlA);
-      if (previewUrlB && previewUrlB.startsWith('blob:')) URL.revokeObjectURL(previewUrlB);
-    };
-  }, [previewUrlA, previewUrlB]);
 
   const canRun = Boolean(fileA && fileB && !isLoading);
 

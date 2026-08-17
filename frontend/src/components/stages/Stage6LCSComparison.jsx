@@ -358,6 +358,14 @@ export default function Stage6LCSComparison({
               {lcsLength} / 16 ({(similarityPct).toFixed(1)}%)
             </span>
           </div>
+          {comparison?.levenshtein && (
+            <div className="side-metric" title="Levenshtein minimum edit operations distance">
+              <span className="sm-label">Levenshtein Edit Metric:</span>
+              <span className="sm-val" style={{ color: 'var(--accent-cyan)' }}>
+                Dist: {comparison.levenshtein.distance} ({comparison.levenshtein.similarity_percent}%)
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
