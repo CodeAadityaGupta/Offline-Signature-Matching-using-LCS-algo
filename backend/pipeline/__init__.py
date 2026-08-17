@@ -1,4 +1,12 @@
 """Pipeline modules for offline signature verification"""
 from .image_to_matrix import ImageToMatrixConverter
+from .matrix_compressor import MatrixCompressor
+from .row_col_converter import MatrixToRowColConverter
+from .row_col_compressor import RowColCompressor
 
-__all__ = ["ImageToMatrixConverter"]
+__all__ = [
+    "ImageToMatrixConverter",
+    "MatrixCompressor",
+    "MatrixToRowColConverter",
+    "RowColCompressor",
+]

@@ -22,6 +22,7 @@ def test_health_check_endpoint():
     data = response.json()
     assert data["status"] == "ok"
     assert "SignaLCS" in data["service"]
+    assert len(data["active_stages"]) >= 5
 
 
 def test_root_endpoint():
@@ -54,14 +55,30 @@ def test_compare_signatures_endpoint_valid():
     assert "comparison" in data
     assert "params_used" in data
 
-    # Verify Stage 2 binary_matrix was generated for both
+    # Verify Stage 2 binary_matrix (64x64)
     assert len(data["signature_a"]["binary_matrix"]) == 64
     assert len(data["signature_b"]["binary_matrix"]) == 64
-
-    # All black image -> all '1's
     assert data["signature_a"]["binary_matrix"][0] == "1" * 64
-    # All white image -> all '0's
     assert data["signature_b"]["binary_matrix"][0] == "0" * 64
+
+    # Verify Stage 3 compressed_matrix (16x16)
+    assert len(data["signature_a"]["compressed_matrix"]) == 16
+    assert len(data["signature_a"]["compressed_matrix"][0]) == 16
+    assert data["signature_a"]["compressed_matrix"][0] == "1" * 16
+    assert data["signature_b"]["compressed_matrix"][0] == "0" * 16
+
+    # Verify Stage 4 row_density & col_density (16 ints each)
+    assert len(data["signature_a"]["row_density"]) == 16
+    assert len(data["signature_a"]["col_density"]) == 16
+    assert data["signature_a"]["row_density"] == [16] * 16
+    assert data["signature_a"]["col_density"] == [16] * 16
+    assert data["signature_b"]["row_density"] == [0] * 16
+
+    # Verify Stage 5 fingerprint_string (16 chars)
+    assert len(data["signature_a"]["fingerprint_string"]) == 16
+    assert len(data["signature_b"]["fingerprint_string"]) == 16
+    assert data["signature_a"]["fingerprint_string"] == "F" * 16
+    assert data["signature_b"]["fingerprint_string"] == "0" * 16
 
 
 def test_compare_signatures_missing_file_422():

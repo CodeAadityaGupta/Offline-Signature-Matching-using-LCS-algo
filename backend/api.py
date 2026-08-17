@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.pipeline.image_to_matrix import ImageToMatrixConverter
+from backend.pipeline.matrix_compressor import MatrixCompressor
+from backend.pipeline.row_col_converter import MatrixToRowColConverter
+from backend.pipeline.row_col_compressor import RowColCompressor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("signalcs-api")
@@ -27,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load benchmark mock template as contract baseline for stages pending Phase 3-6
+# Load benchmark mock template as contract baseline for stages pending Phase 6
 MOCK_FILE_PATH = Path(__file__).resolve().parent.parent / "frontend" / "src" / "data" / "mockResponse.json"
 
 
@@ -37,28 +40,56 @@ def get_mock_template() -> dict:
         with open(MOCK_FILE_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     return {
-        "signature_a": {
-            "binary_matrix": ["0" * 64 for _ in range(64)],
-            "compressed_matrix": ["0" * 16 for _ in range(16)],
-            "row_density": [0] * 16,
-            "col_density": [0] * 16,
-            "fingerprint_string": "0" * 16,
-        },
-        "signature_b": {
-            "binary_matrix": ["0" * 64 for _ in range(64)],
-            "compressed_matrix": ["0" * 16 for _ in range(16)],
-            "row_density": [0] * 16,
-            "col_density": [0] * 16,
-            "fingerprint_string": "0" * 16,
-        },
+        "signature_a": {},
+        "signature_b": {},
         "comparison": {
-            "lcs_length": 16,
-            "lcs_string": "0" * 16,
-            "similarity_percent": 100.0,
+            "lcs_length": 14,
+            "lcs_string": "015F8702597853",
+            "similarity_percent": 87.5,
             "dp_table": [[0] * 17 for _ in range(17)],
             "traceback_path": [[i, i] for i in range(17)],
             "verdict": "likely match",
         },
+    }
+
+
+def process_signature_pipeline(
+    image_bytes: bytes,
+    threshold: int = 128,
+    working_resolution: int = 64,
+    block_size: int = 4,
+    ink_ratio: float = 0.10,
+    quantization_levels: int = 16,
+) -> dict:
+    """Execute Stages 2, 3, 4, 5 of the pipeline on a single signature."""
+    # Stage 2: Image to Binary Matrix (64x64)
+    img_converter = ImageToMatrixConverter(
+        threshold=threshold,
+        working_resolution=working_resolution,
+    )
+    binary_matrix = img_converter.convert(image_bytes)
+
+    # Stage 3: Sub-Block Matrix Compression (16x16)
+    compressor = MatrixCompressor(
+        block_size=block_size,
+        ink_ratio=ink_ratio,
+    )
+    compressed_matrix = compressor.compress(binary_matrix)
+
+    # Stage 4: Row/Column Density Profiling
+    rc_converter = MatrixToRowColConverter(size=len(compressed_matrix))
+    row_density, col_density = rc_converter.convert(compressed_matrix)
+
+    # Stage 5: Final Hex Fingerprint String (16 chars)
+    rc_compressor = RowColCompressor(quantization_levels=quantization_levels)
+    fingerprint_string = rc_compressor.compress(row_density, col_density)
+
+    return {
+        "binary_matrix": binary_matrix,
+        "compressed_matrix": compressed_matrix,
+        "row_density": row_density,
+        "col_density": col_density,
+        "fingerprint_string": fingerprint_string,
     }
 
 
@@ -70,7 +101,13 @@ async def health_check():
         "status": "ok",
         "service": "SignaLCS Verification API",
         "version": "0.1.0",
-        "active_stages": ["Stage 1: Acquisition", "Stage 2: ImageToMatrixConverter"],
+        "active_stages": [
+            "Stage 1: Acquisition",
+            "Stage 2: ImageToMatrixConverter (64x64)",
+            "Stage 3: MatrixCompressor (16x16)",
+            "Stage 4: MatrixToRowColConverter (Projections)",
+            "Stage 5: RowColCompressor (Hex Fingerprint)",
+        ],
     }
 
 
@@ -100,24 +137,32 @@ async def compare_signatures(
     if len(bytes_a) == 0 or len(bytes_b) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty (0 bytes).")
 
-    # Execute Stage 2: ImageToMatrixConverter on both signatures
+    # Execute Stages 2, 3, 4, 5 on both signatures
     try:
-        converter = ImageToMatrixConverter(
+        sig_a_data = process_signature_pipeline(
+            bytes_a,
             threshold=threshold,
             working_resolution=working_resolution,
+            block_size=block_size,
+            ink_ratio=ink_ratio,
+            quantization_levels=quantization_levels,
         )
-        binary_matrix_a = converter.convert(bytes_a)
-        binary_matrix_b = converter.convert(bytes_b)
+        sig_b_data = process_signature_pipeline(
+            bytes_b,
+            threshold=threshold,
+            working_resolution=working_resolution,
+            block_size=block_size,
+            ink_ratio=ink_ratio,
+            quantization_levels=quantization_levels,
+        )
     except Exception as e:
-        logger.error("Stage 2 ImageToMatrixConverter failed: %s", e)
+        logger.error("Pipeline execution error: %s", e)
         raise HTTPException(status_code=422, detail=f"Invalid image format or corrupt file: {str(e)}")
 
     # Assemble contract response
     template = get_mock_template()
-
-    # Embed real Stage 2 live computed matrices
-    template["signature_a"]["binary_matrix"] = binary_matrix_a
-    template["signature_b"]["binary_matrix"] = binary_matrix_b
+    template["signature_a"] = sig_a_data
+    template["signature_b"] = sig_b_data
 
     # Update parameters used in response
     template["params_used"] = {
@@ -129,11 +174,11 @@ async def compare_signatures(
     }
 
     logger.info(
-        "Successfully processed Stage 2 for files '%s' and '%s' (T=%d, Res=%d)",
+        "Processed Stages 2-5 for '%s' (FP: %s) and '%s' (FP: %s)",
         signature_a.filename,
+        sig_a_data["fingerprint_string"],
         signature_b.filename,
-        threshold,
-        working_resolution,
+        sig_b_data["fingerprint_string"],
     )
 
     return JSONResponse(content=template)
