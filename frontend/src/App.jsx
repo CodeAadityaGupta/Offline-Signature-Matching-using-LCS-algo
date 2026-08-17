@@ -3,6 +3,7 @@ import Header from './components/Header';
 import UploadZone from './components/UploadZone';
 import ParamsPanel from './components/ParamsPanel';
 import { DEFAULT_PARAMS } from './constants/params';
+import PipelineStepper from './components/PipelineStepper';
 import JsonStateViewer from './components/JsonStateViewer';
 import { compareSignatures } from './services/api';
 import { Play, Loader2, AlertTriangle, Sparkles } from 'lucide-react';
@@ -186,7 +187,17 @@ export default function App() {
         )}
       </div>
 
-      {/* Phase 2 Deliverable: JSON State & Contract Inspector */}
+      {/* Phase 3, 4, 5: 6-Stage Pipeline Stepper & Intermediate Visualizers */}
+      <PipelineStepper
+        fileA={fileA}
+        previewUrlA={previewUrlA}
+        fileB={fileB}
+        previewUrlB={previewUrlB}
+        response={pipelineResponse}
+        isLoading={isLoading}
+      />
+
+      {/* Contract & State Inspector */}
       <JsonStateViewer
         response={pipelineResponse}
         isLoading={isLoading}
@@ -195,3 +206,4 @@ export default function App() {
     </div>
   );
 }
+
