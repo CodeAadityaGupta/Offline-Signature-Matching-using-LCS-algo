@@ -188,6 +188,7 @@ function SingleCompressedViewer({
 
 export default function Stage3CompressedMatrix({
   response,
+  isLoading = false,
   isOpen,
   onToggle,
 }) {
@@ -219,6 +220,7 @@ export default function Stage3CompressedMatrix({
       badge="16×16 Grid"
       rule={`Block ${blockSize}×${blockSize} Ink Ratio ≥ ${Math.round(inkRatio * 100)}% → '1', else '0'`}
       isCompleted={isCompleted}
+      isLoading={isLoading}
       isOpen={isOpen}
       onToggle={onToggle}
     >

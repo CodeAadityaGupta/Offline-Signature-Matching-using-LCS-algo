@@ -150,6 +150,7 @@ export default function PipelineStepper({
           previewUrlA={previewUrlA}
           fileB={fileB}
           previewUrlB={previewUrlB}
+          isLoading={isLoading}
           isOpen={openStages[1]}
           onToggle={() => toggleStage(1)}
         />
@@ -157,6 +158,7 @@ export default function PipelineStepper({
         {/* Stage 2: Binary Matrix 64x64 (Phase 4) */}
         <Stage2BinaryMatrix
           response={response}
+          isLoading={isLoading}
           isOpen={openStages[2]}
           onToggle={() => toggleStage(2)}
         />
@@ -164,6 +166,7 @@ export default function PipelineStepper({
         {/* Stage 3: Compressed Matrix 16x16 (Phase 5) */}
         <Stage3CompressedMatrix
           response={response}
+          isLoading={isLoading}
           isOpen={openStages[3]}
           onToggle={() => toggleStage(3)}
         />
@@ -171,6 +174,7 @@ export default function PipelineStepper({
         {/* Stage 4: Row/Col Density Profiling (Phase 6) */}
         <Stage4Profiling
           response={response}
+          isLoading={isLoading}
           isOpen={openStages[4]}
           onToggle={() => toggleStage(4)}
         />
@@ -178,6 +182,7 @@ export default function PipelineStepper({
         {/* Stage 5: Final Fingerprint String (Phase 7) */}
         <Stage5Fingerprint
           response={response}
+          isLoading={isLoading}
           isOpen={openStages[5]}
           onToggle={() => toggleStage(5)}
         />
@@ -185,6 +190,7 @@ export default function PipelineStepper({
         {/* Stage 6: LCS Comparison & Verdict (Phase 8) */}
         <Stage6LCSComparison
           response={response}
+          isLoading={isLoading}
           isOpen={openStages[6]}
           onToggle={() => toggleStage(6)}
         />

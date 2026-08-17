@@ -265,6 +265,7 @@ function DpTableMatrix({
 
 export default function Stage6LCSComparison({
   response,
+  isLoading = false,
   isOpen,
   onToggle,
 }) {
@@ -294,6 +295,7 @@ export default function Stage6LCSComparison({
       badge="LCS & DP Matrix"
       rule="DP[i][j] = DP[i-1][j-1]+1 if s1[i-1]==s2[j-1] else max(DP[i-1][j], DP[i][j-1])"
       isCompleted={isCompleted}
+      isLoading={isLoading}
       isOpen={isOpen}
       onToggle={onToggle}
     >

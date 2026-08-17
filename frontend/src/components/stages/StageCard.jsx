@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, CheckCircle2, CircleDashed } from 'lucide-react';
+import { ChevronDown, CheckCircle2, CircleDashed, Loader2 } from 'lucide-react';
 
 export default function StageCard({
   stageNumber,
@@ -9,15 +9,16 @@ export default function StageCard({
   rule,
   badge,
   isCompleted = false,
+  isLoading = false,
   isOpen = true,
   onToggle,
   children,
 }) {
   return (
-    <div className={`stage-card ${isOpen ? 'open' : 'closed'} ${isCompleted ? 'completed' : ''}`}>
+    <div className={`stage-card ${isOpen ? 'open' : 'closed'} ${isCompleted ? 'completed' : ''} ${isLoading ? 'computing' : ''}`}>
       <div className="stage-header" onClick={onToggle}>
         <div className="stage-header-left">
-          <div className="stage-num-badge">
+          <div className={`stage-num-badge ${isLoading ? 'pulsing' : ''}`}>
             <span>{stageNumber}</span>
           </div>
 
@@ -26,7 +27,12 @@ export default function StageCard({
               {Icon && <Icon size={18} className="stage-icon" />}
               <h3>{title}</h3>
               {badge && <span className="stage-pill-badge">{badge}</span>}
-              {isCompleted ? (
+              {isLoading ? (
+                <span className="stage-status-tag computing">
+                  <Loader2 size={13} className="spinner" />
+                  <span>Processing...</span>
+                </span>
+              ) : isCompleted ? (
                 <span className="stage-status-tag completed">
                   <CheckCircle2 size={13} />
                   <span>Computed</span>
@@ -63,7 +69,18 @@ export default function StageCard({
 
       {isOpen && (
         <div className="stage-body">
-          {children}
+          {isLoading ? (
+            <div className="stage-skeleton-wrapper">
+              <div className="skeleton-line shimmer full" />
+              <div className="skeleton-grid-shimmer">
+                <div className="skeleton-box shimmer" />
+                <div className="skeleton-box shimmer" />
+              </div>
+              <div className="skeleton-line shimmer half" />
+            </div>
+          ) : (
+            children
+          )}
         </div>
       )}
     </div>

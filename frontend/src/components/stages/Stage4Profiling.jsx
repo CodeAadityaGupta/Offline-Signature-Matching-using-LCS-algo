@@ -241,6 +241,7 @@ function SingleProfilingViewer({
 
 export default function Stage4Profiling({
   response,
+  isLoading = false,
   isOpen,
   onToggle,
 }) {
@@ -266,6 +267,7 @@ export default function Stage4Profiling({
       badge="Density Profiles"
       rule="Row Density R[i] = Σ(16 cols) | Col Density C[j] = Σ(16 rows)"
       isCompleted={isCompleted}
+      isLoading={isLoading}
       isOpen={isOpen}
       onToggle={onToggle}
     >

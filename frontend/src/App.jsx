@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import UploadZone from './components/UploadZone';
 import ParamsPanel from './components/ParamsPanel';
 import { DEFAULT_PARAMS } from './constants/params';
 import PipelineStepper from './components/PipelineStepper';
 import JsonStateViewer from './components/JsonStateViewer';
-import { compareSignatures } from './services/api';
-import { Play, Loader2, AlertTriangle, Sparkles } from 'lucide-react';
+import WalkthroughGuide from './components/WalkthroughGuide';
+import SamplePresetsModal from './components/SamplePresetsModal';
+import { compareSignatures, DEFAULT_API_BASE_URL } from './services/api';
+import { Play, Loader2, AlertTriangle, Sparkles, BookOpen, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [fileA, setFileA] = useState(null);
@@ -16,11 +18,16 @@ export default function App() {
 
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [isMockMode, setIsMockMode] = useState(true);
+  const [apiUrl, setApiUrl] = useState(DEFAULT_API_BASE_URL);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [pipelineResponse, setPipelineResponse] = useState(null);
   const [executionTime, setExecutionTime] = useState(null);
+
+  // Modals state
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+  const [isPresetsOpen, setIsPresetsOpen] = useState(false);
 
   // File handlers for Signature A
   const handleFileSelectA = (file) => {
@@ -60,6 +67,25 @@ export default function App() {
     setPreviewUrlB('');
   };
 
+  // Preset loader
+  const handleSelectPreset = async (preset) => {
+    try {
+      const [resA, resB] = await Promise.all([
+        fetch(preset.pathA),
+        fetch(preset.pathB),
+      ]);
+      const [blobA, blobB] = await Promise.all([resA.blob(), resB.blob()]);
+
+      const fileObjA = new File([blobA], preset.nameA, { type: blobA.type || 'image/svg+xml' });
+      const fileObjB = new File([blobB], preset.nameB, { type: blobB.type || 'image/svg+xml' });
+
+      handleFileSelectA(fileObjA);
+      handleFileSelectB(fileObjB);
+    } catch (err) {
+      console.error('Failed to load preset signatures:', err);
+    }
+  };
+
   // Quick load both reference samples
   const handleLoadBothSamples = async () => {
     try {
@@ -80,7 +106,7 @@ export default function App() {
   };
 
   // Run pipeline comparison
-  const handleRunComparison = async () => {
+  const handleRunComparison = useCallback(async () => {
     if (!fileA || !fileB) {
       setError('Please upload or load both Signature A and Signature B before running comparison.');
       return;
@@ -91,7 +117,7 @@ export default function App() {
     const t0 = performance.now();
 
     try {
-      const result = await compareSignatures(fileA, fileB, params, isMockMode);
+      const result = await compareSignatures(fileA, fileB, params, isMockMode, apiUrl);
       const elapsed = Math.round(performance.now() - t0);
       setExecutionTime(elapsed);
       setPipelineResponse(result);
@@ -103,7 +129,7 @@ export default function App() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fileA, fileB, params, isMockMode, apiUrl]);
 
   // Clean up Object URLs on unmount
   useEffect(() => {
@@ -121,14 +147,28 @@ export default function App() {
       <Header
         isMockMode={isMockMode}
         onToggleMockMode={setIsMockMode}
+        onOpenGuide={() => setIsGuideOpen(true)}
+        onOpenPresets={() => setIsPresetsOpen(true)}
+        apiUrl={apiUrl}
+        onUpdateApiUrl={setApiUrl}
         statusText={isLoading ? 'Computing Pipeline...' : 'System Ready'}
       />
 
-      {/* Error Alert */}
+      {/* Error Alert Banner */}
       {error && (
         <div className="error-banner">
           <AlertTriangle size={20} />
-          <span>{error}</span>
+          <div className="error-msg-content">
+            <strong>Pipeline Error:</strong>
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            className="error-dismiss-btn"
+            onClick={() => setError(null)}
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
@@ -166,6 +206,11 @@ export default function App() {
               <Loader2 size={18} className="spinner" />
               <span>Executing Pipeline...</span>
             </>
+          ) : pipelineResponse ? (
+            <>
+              <RefreshCw size={18} />
+              <span>Re-Run Comparison</span>
+            </>
           ) : (
             <>
               <Play size={18} fill="currentColor" />
@@ -174,20 +219,26 @@ export default function App() {
           )}
         </button>
 
-        {(!fileA || !fileB) && (
-          <button
-            type="button"
-            className="sample-load-btn"
-            style={{ padding: '0.65rem 1.25rem', fontSize: '0.875rem' }}
-            onClick={handleLoadBothSamples}
-          >
-            <Sparkles size={16} />
-            Quick-Load Reference Signatures
-          </button>
-        )}
+        <button
+          type="button"
+          className="sample-load-btn"
+          onClick={() => setIsPresetsOpen(true)}
+        >
+          <Sparkles size={16} />
+          Choose Sample Presets
+        </button>
+
+        <button
+          type="button"
+          className="guide-launcher-btn"
+          onClick={() => setIsGuideOpen(true)}
+        >
+          <BookOpen size={16} />
+          Interactive Guide
+        </button>
       </div>
 
-      {/* Phase 3, 4, 5: 6-Stage Pipeline Stepper & Intermediate Visualizers */}
+      {/* Phase 3–8: 6-Stage Pipeline Stepper & Intermediate Visualizers */}
       <PipelineStepper
         fileA={fileA}
         previewUrlA={previewUrlA}
@@ -203,7 +254,21 @@ export default function App() {
         isLoading={isLoading}
         executionTime={executionTime}
       />
+
+      {/* Modals & Guides */}
+      <WalkthroughGuide
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
+        onLoadReferenceSample={async () => {
+          await handleLoadBothSamples();
+        }}
+      />
+
+      <SamplePresetsModal
+        isOpen={isPresetsOpen}
+        onClose={() => setIsPresetsOpen(false)}
+        onSelectPreset={handleSelectPreset}
+      />
     </div>
   );
 }
-

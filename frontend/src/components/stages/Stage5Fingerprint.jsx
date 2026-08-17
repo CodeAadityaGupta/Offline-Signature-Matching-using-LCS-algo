@@ -167,6 +167,7 @@ function FingerprintDisplay({
 
 export default function Stage5Fingerprint({
   response,
+  isLoading = false,
   isOpen,
   onToggle,
 }) {
@@ -186,6 +187,7 @@ export default function Stage5Fingerprint({
       badge="16-Char Hex String"
       rule="Row/Col 8-Bucket Mean Density → Quantized Hex Range [0..F]"
       isCompleted={isCompleted}
+      isLoading={isLoading}
       isOpen={isOpen}
       onToggle={onToggle}
     >

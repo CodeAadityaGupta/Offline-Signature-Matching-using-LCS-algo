@@ -182,6 +182,7 @@ function SingleBinaryViewer({
 
 export default function Stage2BinaryMatrix({
   response,
+  isLoading = false,
   isOpen,
   onToggle,
 }) {
@@ -204,6 +205,7 @@ export default function Stage2BinaryMatrix({
       badge="64×64 Matrix"
       rule={`Pixel Luminance < T (${threshold}) → '1' (Ink), else '0' (Background)`}
       isCompleted={isCompleted}
+      isLoading={isLoading}
       isOpen={isOpen}
       onToggle={onToggle}
     >

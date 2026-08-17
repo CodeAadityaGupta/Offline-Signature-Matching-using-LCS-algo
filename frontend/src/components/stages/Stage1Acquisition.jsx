@@ -69,6 +69,7 @@ export default function Stage1Acquisition({
   previewUrlA,
   fileB,
   previewUrlB,
+  isLoading = false,
   isOpen,
   onToggle,
 }) {
@@ -84,6 +85,7 @@ export default function Stage1Acquisition({
       badge="Input Images"
       rule="Image Acquisition → 8-bit Grayscale → 64×64 Square Framing"
       isCompleted={isCompleted}
+      isLoading={isLoading}
       isOpen={isOpen}
       onToggle={onToggle}
     >
