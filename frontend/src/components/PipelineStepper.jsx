@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import Stage1Acquisition from './stages/Stage1Acquisition';
 import Stage2BinaryMatrix from './stages/Stage2BinaryMatrix';
 import Stage3CompressedMatrix from './stages/Stage3CompressedMatrix';
-import StagePlaceholder from './stages/StagePlaceholder';
+import Stage4Profiling from './stages/Stage4Profiling';
+import Stage5Fingerprint from './stages/Stage5Fingerprint';
+import Stage6LCSComparison from './stages/Stage6LCSComparison';
 import {
   Camera,
   Grid,
@@ -32,14 +34,14 @@ export default function PipelineStepper({
   response,
   isLoading,
 }) {
-  // State for which stages are open (all open by default for rich visual inspection)
+  // State for which stages are open (all open by default for comprehensive stage inspection)
   const [openStages, setOpenStages] = useState({
     1: true,
     2: true,
     3: true,
-    4: false,
-    5: false,
-    6: false,
+    4: true,
+    5: true,
+    6: true,
   });
 
   const toggleStage = (stageNum) => {
@@ -166,25 +168,22 @@ export default function PipelineStepper({
           onToggle={() => toggleStage(3)}
         />
 
-        {/* Stage 4: Row/Col Profiling (Shell for Phase 6) */}
-        <StagePlaceholder
-          stageNumber={4}
+        {/* Stage 4: Row/Col Density Profiling (Phase 6) */}
+        <Stage4Profiling
           response={response}
           isOpen={openStages[4]}
           onToggle={() => toggleStage(4)}
         />
 
-        {/* Stage 5: Final Fingerprint String (Shell for Phase 7) */}
-        <StagePlaceholder
-          stageNumber={5}
+        {/* Stage 5: Final Fingerprint String (Phase 7) */}
+        <Stage5Fingerprint
           response={response}
           isOpen={openStages[5]}
           onToggle={() => toggleStage(5)}
         />
 
-        {/* Stage 6: LCS Comparison (Shell for Phase 8) */}
-        <StagePlaceholder
-          stageNumber={6}
+        {/* Stage 6: LCS Comparison & Verdict (Phase 8) */}
+        <Stage6LCSComparison
           response={response}
           isOpen={openStages[6]}
           onToggle={() => toggleStage(6)}
