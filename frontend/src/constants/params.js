@@ -1,0 +1,55 @@
+export const DEFAULT_PARAMS = {
+  threshold: 128,
+  block_size: 4,
+  ink_ratio: 0.10,
+  quantization_levels: 16,
+  working_resolution: 64,
+};
+
+export const PARAM_DEFINITIONS = [
+  {
+    key: 'threshold',
+    label: 'Binarization Threshold (T)',
+    min: 0,
+    max: 255,
+    step: 1,
+    tooltip: 'Grayscale cutoff level (0–255). Pixels darker than this become ink (1), lighter become background (0).',
+    unit: '',
+  },
+  {
+    key: 'block_size',
+    label: 'Compression Block Size (B)',
+    min: 2,
+    max: 16,
+    step: 2,
+    tooltip: 'Size of sub-blocks (e.g. 4×4) for downsampling the 64×64 binary matrix into 16×16.',
+    unit: 'px',
+  },
+  {
+    key: 'ink_ratio',
+    label: 'Block Ink Ratio Cutoff (R)',
+    min: 0.01,
+    max: 1.00,
+    step: 0.01,
+    tooltip: 'Fraction of ink pixels required in a block to mark the compressed cell as 1 (default 10%).',
+    unit: '',
+  },
+  {
+    key: 'quantization_levels',
+    label: 'Quantization Levels (Q)',
+    min: 2,
+    max: 32,
+    step: 2,
+    tooltip: 'Number of discrete intensity buckets for generating hex fingerprint string characters.',
+    unit: 'bins',
+  },
+  {
+    key: 'working_resolution',
+    label: 'Working Resolution (N)',
+    min: 32,
+    max: 256,
+    step: 16,
+    tooltip: 'Standardized square canvas dimension (N×N) for normalized matrix analysis (default 64×64).',
+    unit: 'px',
+  },
+];
