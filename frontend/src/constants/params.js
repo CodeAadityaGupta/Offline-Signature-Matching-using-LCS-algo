@@ -4,6 +4,7 @@ export const DEFAULT_PARAMS = {
   ink_ratio: 0.10,
   quantization_levels: 16,
   working_resolution: 64,
+  match_threshold_pct: 60,
 };
 
 export const PARAM_DEFINITIONS = [
@@ -52,4 +53,14 @@ export const PARAM_DEFINITIONS = [
     tooltip: 'Standardized square canvas dimension (N×N) for normalized matrix analysis (default 64×64).',
     unit: 'px',
   },
+  {
+    key: 'match_threshold_pct',
+    label: 'LCS Match Cutoff (%)',
+    min: 10,
+    max: 100,
+    step: 5,
+    tooltip: 'Minimum similarity percentage required to issue a "likely match" verdict (default 60%).',
+    unit: '%',
+  },
 ];
+

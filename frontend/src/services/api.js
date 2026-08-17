@@ -69,6 +69,7 @@ export async function compareSignatures(
     ink_ratio: params.ink_ratio ?? 0.10,
     quantization_levels: params.quantization_levels ?? 16,
     working_resolution: params.working_resolution ?? 64,
+    match_threshold_pct: params.match_threshold_pct ?? 60,
   };
 
   // If forceMock is enabled, return the mocked pipeline payload
@@ -120,6 +121,7 @@ export async function compareSignatures(
       const errorJson = await response.json().catch(() => ({}));
       throw new Error(
         errorJson.error ||
+          errorJson.detail ||
           `Backend server error (HTTP ${response.status}: ${response.statusText})`
       );
     }

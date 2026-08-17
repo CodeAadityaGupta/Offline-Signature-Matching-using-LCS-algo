@@ -11,6 +11,7 @@ from backend.pipeline.image_to_matrix import ImageToMatrixConverter
 from backend.pipeline.matrix_compressor import MatrixCompressor
 from backend.pipeline.row_col_converter import MatrixToRowColConverter
 from backend.pipeline.row_col_compressor import RowColCompressor
+from backend.pipeline.lcs_comparator import LCSComparator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("signalcs-api")
@@ -30,27 +31,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load benchmark mock template as contract baseline for stages pending Phase 6
-MOCK_FILE_PATH = Path(__file__).resolve().parent.parent / "frontend" / "src" / "data" / "mockResponse.json"
 
-
-def get_mock_template() -> dict:
-    """Load mock reference response contract."""
-    if MOCK_FILE_PATH.exists():
-        with open(MOCK_FILE_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {
-        "signature_a": {},
-        "signature_b": {},
-        "comparison": {
-            "lcs_length": 14,
-            "lcs_string": "015F8702597853",
-            "similarity_percent": 87.5,
-            "dp_table": [[0] * 17 for _ in range(17)],
-            "traceback_path": [[i, i] for i in range(17)],
-            "verdict": "likely match",
-        },
-    }
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    """Return clean { "error": ... } JSON format matching the API contract."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail},
+    )
 
 
 def process_signature_pipeline(
@@ -107,6 +95,7 @@ async def health_check():
             "Stage 3: MatrixCompressor (16x16)",
             "Stage 4: MatrixToRowColConverter (Projections)",
             "Stage 5: RowColCompressor (Hex Fingerprint)",
+            "Stage 6: LCSComparator (DP Table & Traceback)",
         ],
     }
 
@@ -120,8 +109,9 @@ async def compare_signatures(
     ink_ratio: Optional[float] = Form(0.10),
     quantization_levels: Optional[int] = Form(16),
     working_resolution: Optional[int] = Form(64),
+    match_threshold_pct: Optional[float] = Form(60.0),
 ):
-    """Compare two signature files through the verification pipeline."""
+    """Compare two signature files through the 6-stage verification pipeline."""
     # Validate files presence
     if not signature_a or not signature_b:
         raise HTTPException(status_code=400, detail="Both signature_a and signature_b are required.")
@@ -159,26 +149,37 @@ async def compare_signatures(
         logger.error("Pipeline execution error: %s", e)
         raise HTTPException(status_code=422, detail=f"Invalid image format or corrupt file: {str(e)}")
 
-    # Assemble contract response
-    template = get_mock_template()
-    template["signature_a"] = sig_a_data
-    template["signature_b"] = sig_b_data
+    # Execute Stage 6: Dynamic Programming LCS Comparison
+    comparator = LCSComparator(match_threshold_pct=match_threshold_pct)
+    comparison_data = comparator.compare(
+        sig_a_data["fingerprint_string"],
+        sig_b_data["fingerprint_string"],
+    )
 
-    # Update parameters used in response
-    template["params_used"] = {
-        "threshold": threshold,
-        "block_size": block_size,
-        "ink_ratio": ink_ratio,
-        "quantization_levels": quantization_levels,
-        "working_resolution": working_resolution,
+    # Assemble complete frozen contract response
+    response_payload = {
+        "signature_a": sig_a_data,
+        "signature_b": sig_b_data,
+        "comparison": comparison_data,
+        "params_used": {
+            "threshold": threshold,
+            "block_size": block_size,
+            "ink_ratio": ink_ratio,
+            "quantization_levels": quantization_levels,
+            "working_resolution": working_resolution,
+            "match_threshold_pct": match_threshold_pct,
+        },
     }
 
     logger.info(
-        "Processed Stages 2-5 for '%s' (FP: %s) and '%s' (FP: %s)",
+        "Processed Stages 1-6 for '%s' (FP: %s) and '%s' (FP: %s) -> LCS: %d (%s%% - %s)",
         signature_a.filename,
         sig_a_data["fingerprint_string"],
         signature_b.filename,
         sig_b_data["fingerprint_string"],
+        comparison_data["lcs_length"],
+        comparison_data["similarity_percent"],
+        comparison_data["verdict"],
     )
 
-    return JSONResponse(content=template)
+    return JSONResponse(content=response_payload)

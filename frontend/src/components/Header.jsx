@@ -34,10 +34,9 @@ export default function Header({
   };
 
   useEffect(() => {
-    if (!isMockMode) {
-      runHealthCheck(apiUrl);
-    }
-  }, [isMockMode, apiUrl]);
+    runHealthCheck(apiUrl);
+  }, [apiUrl]);
+
 
   const handleSaveSettings = () => {
     onUpdateApiUrl(tempUrl);
