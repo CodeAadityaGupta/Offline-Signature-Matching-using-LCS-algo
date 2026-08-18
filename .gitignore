@@ -80,3 +80,4 @@ Thumbs.db
 sample_uploads/
 *.tmp.png
 *.tmp.jpg
+/Docs/
